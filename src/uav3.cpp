@@ -39,6 +39,7 @@ float V=0.5;
 double alpha_max = 1;
 float k;
 float rho;
+int count = 0;
 
 
 
@@ -140,7 +141,7 @@ int main(int argc, char *argv[])
   
   state NextSt;
   float h = 0.1;
-  
+
   ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>("uav"ID "/mavros/state", 10, state_cb);
   ros::Subscriber pose_fb_sub = nh.subscribe<geometry_msgs::PoseStamped>("uav"ID"/mavros/local_position/pose", 10, pose_fb_cb);
   ros::Subscriber pose2_fb_sub = nh.subscribe<geometry_msgs::PoseStamped>("uav"IDfoll"/mavros/local_position/pose", 10, pose2_fb_cb);
@@ -214,18 +215,21 @@ int main(int argc, char *argv[])
     get_pose_desired(quad_foll_pose);
     alpha_desired = get_alpha_desired(quad_pose);
 
-
-    // NextSt = rk4(quad_dest.pose.position.x, quad_dest.pose.position.y, alpha, 0.1);                       //runge-kutta
+    if(count%5 == 0)
+       NextSt = rk4(quad_dest.pose.position.x, quad_dest.pose.position.y, alpha, 0.1);                       //runge-kutta
     
-    NextSt.x = quad_dest.pose.position.x + h*V*cos(alpha);                                                 //Euler
+    /*NextSt.x = quad_dest.pose.position.x + h*V*cos(alpha);                                                 //Euler
     NextSt.y = quad_dest.pose.position.y + h*V*sin(alpha);
-    NextSt.a = alpha + h*k*(alpha_desired - alpha);
+    NextSt.a = alpha + h*k*(alpha_desired - alpha);*/
 
     quad_dest.pose.position.x = NextSt.x;
     quad_dest.pose.position.y = NextSt.y;
     quad_dest.pose.position.z = zo;
     alpha = NextSt.a;
+
+    
     local_pos_pub.publish(quad_dest);
+    count++;
 
     ros::spinOnce();
     rate.sleep();

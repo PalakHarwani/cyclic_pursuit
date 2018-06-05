@@ -39,6 +39,7 @@ float V=0.5;
 double alpha_max = 1;
 float k;
 float rho;
+int count = 0;
 
 
 
@@ -137,9 +138,9 @@ int main(int argc, char *argv[])
   ros::init(argc, argv, "uav"ID"");
   ros::NodeHandle nh;
 
-  k=std::atof(argv[1]);
-  rho=std::atof(argv[2]);
-  
+  k=std::atof(argv[1]);         //1
+  rho=std::atof(argv[2]);       //0.7
+
   state NextSt;
   float h = 0.1;
 
@@ -217,18 +218,22 @@ int main(int argc, char *argv[])
     alpha_desired = get_alpha_desired(quad_pose);
 
 
+    if(count%5 == 0) 
+      NextSt = rk4(quad_dest.pose.position.x, quad_dest.pose.position.y, alpha, 0.1);                       //runge-kutta
     
-   // NextSt = rk4(quad_dest.pose.position.x, quad_dest.pose.position.y, alpha, 0.1);                       //runge-kutta
-    
-    NextSt.x = quad_dest.pose.position.x + h*V*cos(alpha);                                                 //Euler
+    /*NextSt.x = quad_dest.pose.position.x + h*V*cos(alpha);                                                 //Euler
     NextSt.y = quad_dest.pose.position.y + h*V*sin(alpha);
-    NextSt.a = alpha + h*k*(alpha_desired - alpha);
+    NextSt.a = alpha + h*k*(alpha_desired - alpha);*/
 
     quad_dest.pose.position.x = NextSt.x;
     quad_dest.pose.position.y = NextSt.y;
     quad_dest.pose.position.z = zo;
     alpha = NextSt.a;
+
+
+    
     local_pos_pub.publish(quad_dest);
+    count++;
 
     ros::spinOnce();
     rate.sleep();
