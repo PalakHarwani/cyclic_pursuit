@@ -33,10 +33,10 @@ geometry_msgs::PoseStamped quad_dest;
 #define zo 1
 #define ID "1"
 #define IDfoll "2"
-
+#define pi 3.14159
 
 float V=0.5;
-double alpha_max = 1;
+double alpha_max = 1.5;
 float k;
 float rho;
 int count = 0;
@@ -132,6 +132,26 @@ state rk4(float x0, float y0, float a0,float h)
   return NextSt;
 }
 
+
+double normalise(double angle)
+{
+  double theta;
+  if(angle > pi)
+    theta = angle - 2*pi;
+  else if(angle < (-1)*pi)
+    theta = angle + 2*pi;
+  else 
+    theta = angle;
+  return theta;
+}
+
+float getErrorLinear(const geometry_msgs::PoseStamped quad_pose, const geometry_msgs::PoseStamped quad_dest)
+{
+  float El;
+  El = sqrt(pow((quad_dest.pose.position.x - quad_pose.pose.position.x),2) + pow((quad_dest.pose.position.y - quad_pose.pose.position.y),2));
+  return El;
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -143,6 +163,8 @@ int main(int argc, char *argv[])
 
   state NextSt;
   float h = 0.1;
+  float heading_error;
+  float El;
 
   ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>("uav"ID "/mavros/state", 10, state_cb);
   ros::Subscriber pose_fb_sub = nh.subscribe<geometry_msgs::PoseStamped>("uav"ID"/mavros/local_position/pose", 10, pose_fb_cb);
@@ -218,19 +240,35 @@ int main(int argc, char *argv[])
     alpha_desired = get_alpha_desired(quad_pose);
 
 
-    if(count%5 == 0) 
-      NextSt = rk4(quad_dest.pose.position.x, quad_dest.pose.position.y, alpha, 0.1);                       //runge-kutta
+    /*if(count%5 == 0) 
+      NextSt = rk4(quad_dest.pose.position.x, quad_dest.pose.position.y, alpha, 0.1);       */                //runge-kutta
+
+
+
+
+    heading_error = alpha_desired - alpha;
+    heading_error = normalise(heading_error);
+    heading_error = k*heading_error;
+
+    if(heading_error > alpha_max)
+      heading_error = alpha_max;
+    else  if(heading_error < -alpha_max)
+      heading_error = -alpha_max;
+
     
-    /*NextSt.x = quad_dest.pose.position.x + h*V*cos(alpha);                                                 //Euler
+    NextSt.x = quad_dest.pose.position.x + h*V*cos(alpha);                                                 //Euler
     NextSt.y = quad_dest.pose.position.y + h*V*sin(alpha);
-    NextSt.a = alpha + h*k*(alpha_desired - alpha);*/
+    NextSt.a = alpha + h*heading_error;
+    NextSt.a = normalise(NextSt.a);
 
     quad_dest.pose.position.x = NextSt.x;
     quad_dest.pose.position.y = NextSt.y;
     quad_dest.pose.position.z = zo;
     alpha = NextSt.a;
 
+    El = getErrorLinear(quad_pose, quad_dest);
 
+    ROS_INFO("Error: %f", El);
     
     local_pos_pub.publish(quad_dest);
     count++;
